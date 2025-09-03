@@ -3,62 +3,64 @@ const fs = require('fs');
 // Step 1: Process terminal output to generate files.txt
 const terminalOutput = `
 AzureAD+YourName@DESKTOP-DESKTOP MINGW64 ~/Your/File/Path
-$ ls 4000
-23-4000_ko3qtrdr_p04.jpg  23-4000_ko3qtrps_p01_2.jpg  23-4000_kodir_p01_1.jpg  23-4000_p05_3.jpg
+$ ls 31000
+31000_ko3qtrdr_p01_1.jpg  31000_kodir_p04.jpg
 
 AzureAD+YourName@DESKTOP-DESKTOP MINGW64 ~/Your/File/Path
-$ ls 4005
-23-4005_ko3qtrdr_p04.jpg  23-4005_ko3qtrps_p01_2.jpg  23-4005_kodir_p01_1.jpg  23-4005_p03_1.jpg  23-4005_p05_3.jpg
+$ ls 31003
+ls: cannot access '31003': No such file or directory
 
 AzureAD+YourName@DESKTOP-DESKTOP MINGW64 ~/Your/File/Path
-$ ls 4010
-23-4010_ko3qtrdr_p04.jpg  23-4010_ko3qtrps_p01_2.jpg  23-4010_kodir_p01_1.jpg  23-4010_p05_3.jpg
+$ ls 31006
+31006_ko3qtrdr_p01_1.jpg  31006_kodir_p04.jpg
 `;
 
-// Split the terminal output into lines and filter for .jpg files
+// Split the terminal output into lines
 const lines = terminalOutput.trim().split('\n');
-const files = lines
-  .filter(line => line.includes('.jpg')) // Keep only lines with .jpg
-  .flatMap(line => line.trim().split(/\s+/)) // Split each line by whitespace
-  .filter(file => file); // Remove any empty entries
 
-// Write the filtered list to files.txt
+// Extract directories from ls commands and .jpg files
+const directories = [];
+const files = [];
+let currentDir = null;
+lines.forEach((line) => {
+  // Match lines starting with "$ ls " to extract directory names
+  if (line.startsWith('$ ls ')) {
+    currentDir = line.replace('$ ls ', '').trim();
+    directories.push(currentDir);
+  }
+  // Collect lines with .jpg files, associating with the current directory
+  if (line.includes('.jpg')) {
+    files.push(...line.trim().split(/\s+/).filter(file => file).map(file => ({ file, dir: currentDir })));
+  }
+});
+
+// Write the filtered file list to files.txt
 try {
-  fs.writeFileSync('files.txt', files.join('\n'), 'utf8');
+  fs.writeFileSync('files.txt', files.map(item => item.file).join('\n'), 'utf8');
   console.log('File list has been written to files.txt');
 } catch (err) {
   console.error('Error writing to file:', err);
-  process.exit(1); // Exit if the file can't be written
+  process.exit(1);
 }
 
-// Step 2: Read files.txt and generate CSV
-let fileList;
-try {
-  fileList = fs.readFileSync('./files.txt', 'utf8');
-} catch (err) {
-  console.error('Error reading files.txt:', err);
-  process.exit(1); // Exit if the file can't be read
-}
-
-// Split the list into lines and filter out empty entries
-const fileListArray = fileList.trim().split('\n').filter(file => file);
-
-// Group files by prefix (e.g., 51-10005)
+// Step 2: Generate CSV with a row for each directory
 const groupedFiles = {};
-fileListArray.forEach(file => {
-  const prefix = file.split('_')[0]; // Extract prefix (e.g., 51-10005)
-  if (!groupedFiles[prefix]) {
-    groupedFiles[prefix] = [];
-  }
-  groupedFiles[prefix].push(file);
+// Initialize all directories with empty arrays
+directories.forEach(dir => {
+  groupedFiles[dir] = [];
 });
 
-// Create CSV content: each prefix gets a row with files in columns
+// Add files to their respective prefix groups
+files.forEach(({ file, dir }) => {
+  groupedFiles[dir].push(file);
+});
+
+// Create CSV content: each directory gets a row, empty or with files
 const csvRows = [];
-const prefixes = Object.keys(groupedFiles).sort();
+const prefixes = directories.sort(); // Sort directories
 prefixes.forEach(prefix => {
-  const row = groupedFiles[prefix].map(file => `"${file}"`); // Wrap in quotes to handle commas in file names
-  csvRows.push(row.join(','));
+  const row = groupedFiles[prefix].map(file => `"${file}"`); // Wrap in quotes
+  csvRows.push(row.join(',')); // Empty row will be ""
 });
 
 // Write CSV to file
