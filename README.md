@@ -3,7 +3,7 @@ This project processes terminal output from `ls` commands to organize file names
 
 ## How to run
 1. Ensure you have Node.js installed.
-2. Place `combined.js` in the directory containing your terminal output or files (e.g., `~/OneDrive - Waldoch/Desktop/Web_Development/Westin/51`).
+2. Place `combined.js` in the directory containing your terminal output or files (e.g., `~/Your/File/Path`).
 3. Update the `terminalOutput` variable in `combined.js` with your terminal output, or modify the script to read from a file (e.g., `terminal_output.txt`).
 4. Run the command:
    ```bash
