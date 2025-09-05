@@ -1,0 +1,13 @@
+{
+  "name": "shopify_cdn",
+  "version": "1.0.0",
+  "description": "",
+  "main": "json_to_csv.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
