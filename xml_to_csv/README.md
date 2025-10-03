@@ -19,3 +19,6 @@ Structure of XML to convert example
     </customvalues>
 </customlist>
 ```
+
+## XML File Details
+XML File was exported from a NetSuite Custom List
