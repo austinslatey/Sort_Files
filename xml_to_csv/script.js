@@ -1,8 +1,14 @@
 const fs = require("fs");
-const { DOMParser } = require("xmldom");
+const { DOMParser } = require("@xmldom/xmldom");
 
 // Read XML file as a string
-const xmlString = fs.readFileSync("./customList.xml", "utf8");
+let xmlString;
+try {
+  xmlString = fs.readFileSync("./customList.xml", "utf8");
+} catch (error) {
+  console.error("Error reading XML file:", error.message);
+  process.exit(1);
+}
 
 function xmlToCsv(xmlString) {
   try {
@@ -40,7 +46,7 @@ function xmlToCsv(xmlString) {
     // Helper function to get text content of a child element
     function getElementText(parent, tagName) {
       const element = parent.getElementsByTagName(tagName)[0];
-      return element ? element.textContent : "";
+      return element ? element.textContent || "" : "";
     }
 
     return csvRows.join("\n");
@@ -54,10 +60,13 @@ function xmlToCsv(xmlString) {
 const csv = xmlToCsv(xmlString);
 if (csv) {
   console.log("CSV Output:\n", csv);
-
   // Write CSV to file
-  fs.writeFileSync("customList.csv", csv, "utf8");
-  console.log("CSV written to customList.csv");
+  try {
+    fs.writeFileSync("paint_codes.csv", csv, "utf8");
+    console.log("CSV written to paint_codes.csv");
+  } catch (error) {
+    console.error("Error writing CSV file:", error.message);
+  }
 } else {
   console.log("No CSV output generated");
 }
