@@ -56,8 +56,8 @@ if (csv) {
   console.log("CSV Output:\n", csv);
 
   // Write CSV to file
-  fs.writeFileSync("paint_codes.csv", csv, "utf8");
-  console.log("CSV written to paint_codes.csv");
+  fs.writeFileSync("customList.csv", csv, "utf8");
+  console.log("CSV written to customList.csv");
 } else {
   console.log("No CSV output generated");
 }
