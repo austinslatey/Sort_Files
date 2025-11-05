@@ -1,0 +1,44 @@
+# JSON-to-CSV
+Converts a particular JSON object to csv
+
+```json
+{
+    "products": [
+{
+            "id": 1101011010,
+            "title": "Example Title",
+            "handle": "example-title",
+            "variants": [
+                {
+                    "id": 110101101001101001,
+                    "product_id": 1101011010,
+                    "title": "Default Title",
+                    "price": "1799.99",
+                    "position": 1,
+                    "inventory_policy": "continue",
+                    "compare_at_price": null,
+                    "option1": "Default Title",
+                    "option2": null,
+                    "option3": null,
+                    "created_at": "2025-06-20T16:55:19-05:00",
+                    "updated_at": "2025-09-08T14:53:30-05:00",
+                    "taxable": true,
+                    "barcode": "sku1234",
+                    "fulfillment_service": "manual",
+                    "grams": 23133,
+                    "inventory_management": "shopify",
+                    "requires_shipping": true,
+                    "sku": "sku1234",
+                    "weight": 51,
+                    "weight_unit": "lb",
+                    "inventory_item_id": 1101011010,
+                    "inventory_quantity": 1,
+                    "old_inventory_quantity": 1,
+                    "admin_graphql_api_id": "gid://shopify/ProductVariant/1101011010",
+                    "image_id": null
+                }
+            ]
+        }
+    ]
+}
+```
