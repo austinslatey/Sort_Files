@@ -67,7 +67,7 @@ if (zeroMbFiles.length === 0) {
         deleteScript += `rm -v '${safePath}'\n`;
     });
 
-    deleteScript += '\necho "Done. All 0-byte images removed."\n';
+    //deleteScript += '\necho "Done. All 0-byte images removed."\n';
 
     // fs.writeFileSync(deleteScriptOutput, deleteScript);
     // fs.chmodSync(deleteScriptOutput, '755'); // Make executable
