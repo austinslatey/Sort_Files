@@ -3,74 +3,45 @@ const path = require('path');
 
 const rootDir = './downloaded_images';
 const csvOutput = 'zero_mb_images.csv';
-//const deleteScriptOutput = 'delete_zero_mb_images.sh';
 
-const zeroMbFiles = [];
 let csvContent = 'Part Number,Image Name,File Size (bytes)\n';
+let foundCount = 0;
 
-// Walk through all directories and files recursively
-function scanDirectory(dir) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+// Get all first-level folders (these are your Part Numbers)
+const partFolders = fs.readdirSync(rootDir)
+    .map(name => path.join(rootDir, name))
+    .filter(fullPath => fs.statSync(fullPath).isDirectory());
 
-    for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        const relativeFromRoot = path.relative(rootDir, dir);
+console.log(`Scanning ${partFolders.length} part folders for 0-byte JPGs...\n`);
 
-        if (entry.isDirectory()) {
-            // Skip if it's the root folder itself (avoid empty part number)
-            if (relativeFromRoot !== '') {
-                scanDirectory(fullPath);
-            } else {
-                // First level folders (part numbers)
-                scanDirectory(fullPath);
-            }
-        } else if (entry.isFile()) {
-            // Only check image files
-            if (/\.(jpe?g)$/i.test(entry.name)) {
-                const stats = fs.statSync(fullPath);
-                if (stats.size === 0) {
-                    const partNumber = path.basename(dir); // Folder name = Part Number
-                    zeroMbFiles.push({
-                        partNumber,
-                        imageName: entry.name,
-                        fileSize: stats.size
-                    });
+partFolders.forEach(folderPath => {
+    const partNumber = path.basename(folderPath);
 
-                    csvContent += `"${partNumber}","${entry.name}",${stats.size}\n`;
-                }
+    // Skip if folder doesn't actually exist or is empty
+    if (!fs.existsSync(folderPath)) return;
+
+    const files = fs.readdirSync(folderPath);
+
+    files.forEach(fileName => {
+        if (/\.(jpe?g)$/i.test(fileName)) {  // matches .jpg, .jpeg, .JPG, etc.
+            const filePath = path.join(folderPath, fileName);
+            const stats = fs.statSync(filePath);
+
+            if (stats.size === 0) {
+                foundCount++;
+                csvContent += `"${partNumber}","${fileName}",0\n`;
+                console.log(`Found → ${partNumber}/${fileName}`);
             }
         }
-    }
-}
+    });
+});
 
-// Start scanning
-console.log('Scanning for 0-byte JPG images...');
-scanDirectory(rootDir);
-
-if (zeroMbFiles.length === 0) {
-    console.log('No 0-byte images found. Great job!');
+// Write the CSV file
+if (foundCount === 0) {
+    console.log('\nNo 0-byte images found. You are all good!');
     fs.writeFileSync(csvOutput, 'No 0-byte images found.\n');
 } else {
-    // Write CSV
     fs.writeFileSync(csvOutput, csvContent);
-    console.log(`Found ${zeroMbFiles.length} zero-byte image(s).`);
-    console.log(`CSV exported to: ${csvOutput}`);
-
-    // Generate deletion script (safe to review before running)
-    let deleteScript = '#!/bin/bash\n';
-    deleteScript += '# This script deletes all 0-byte JPG images listed in the CSV\n';
-    deleteScript += '# Review carefully before running!\n\n';
-    deleteScript += 'echo "Deleting 0-byte images..."\n\n';
-
-    zeroMbFiles.forEach(file => {
-        const safePath = path.join(rootDir, file.partNumber, file.imageName).replace(/'/g, "'\\'''");
-        deleteScript += `rm -v '${safePath}'\n`;
-    });
-
-    //deleteScript += '\necho "Done. All 0-byte images removed."\n';
-
-    // fs.writeFileSync(deleteScriptOutput, deleteScript);
-    // fs.chmodSync(deleteScriptOutput, '755'); // Make executable
-    // console.log(`Deletion script generated: ${deleteScriptOutput}`);
-    // console.log(`   Run it later with: ./${deleteScriptOutput}`);
+    console.log(`\nDone! Found ${foundCount} zero-byte image(s).`);
+    console.log(`CSV saved as: ${csvOutput}`);
 }
