@@ -1,100 +1,97 @@
+// download-images-RESUME.js
 const fs = require('fs');
 const path = require('path');
-const csv = require('csv-parser');
 const axios = require('axios');
 
-// CONFIGURATION - CHANGE THESE
-const CSV_FILE = 'products.csv';        // Your CSV file name
-const OUTPUT_FOLDER = 'downloaded_images'; // Folder to save images
+const CSV_FILE = 'products.csv';
+const OUTPUT_FOLDER = 'downloaded_images';
 
-// Create output folder if it doesn't exist
-if (!fs.existsSync(OUTPUT_FOLDER)) {
-  fs.mkdirSync(OUTPUT_FOLDER);
-  console.log(`Created folder: ${OUTPUT_FOLDER}`);
-}
+// RESUME SUPPORT — CHANGE THIS TO YOUR CURRENT LINE
+const START_FROM_LINE = 4144;   // ← Set to 4144 to continue from "76650RED"
 
-// Function to download image
+if (!fs.existsSync(OUTPUT_FOLDER)) fs.mkdirSync(OUTPUT_FOLDER, { recursive: true });
+
 async function downloadImage(url, filepath) {
+  if (fs.existsSync(filepath)) {
+    console.log(`  Already exists → ${path.basename(filepath)}`);
+    return;
+  }
   try {
+    const writer = fs.createWriteStream(filepath);
     const response = await axios({
       url,
       method: 'GET',
       responseType: 'stream',
-      timeout: 30000, // 30 second timeout
+      timeout: 60000,
     });
-
-    return new Promise((resolve, reject) => {
-      const writer = fs.createWriteStream(filepath);
-      response.data.pipe(writer);
+    response.data.pipe(writer);
+    await new Promise((resolve, reject) => {
       writer.on('finish', () => {
-        console.log(`Downloaded: ${path.basename(filepath)}`);
+        console.log(`  Downloaded → ${path.basename(filepath)}`);
         resolve();
       });
-      writer.on('error', (err) => {
-        fs.unlink(filepath, () => {}); // Delete partial file
-        reject(err);
-      });
+      writer.on('error', reject);
     });
-  } catch (error) {
-    console.error(`Failed to download: ${url} → ${error.message}`);
+  } catch (err) {
+    console.error(`  Failed → ${url}`);
   }
 }
 
-// Main function
-async function processCSV() {
-  const rows = [];
+(async () => {
+  console.log('Reading CSV file...\n');
 
-  // Read CSV
-  fs.createReadStream(CSV_FILE)
-    .pipe(csv())
-    .on('data', (row) => {
-      rows.push(row);
-    })
-    .on('end', async () => {
-      console.log(`CSV parsed successfully. Found ${rows.length} products.\n`);
+  let content = fs.readFileSync(CSV_FILE, 'utf8');
+  if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
 
-      for (const row of rows) {
-        const name = row['Name'] || row['name'] || row['Part Number'] || row['part_number'];
-        if (!name) {
-          console.warn('Skipping row with no name:', row);
-          continue;
-        }
+  const lines = content
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l);
 
-        const baseName = `${name.trim()}_Rough-Country_Waldoch`;
-        let imageIndex = 0; // 0 = no suffix, 1+ = _1, _2, etc.
+  if (lines.length <= 1) {
+    console.log('CSV is empty!');
+    return;
+  }
 
-        // Loop through all possible image columns
-        for (let i = 1; i <= 10; i++) {
-          const urlKey = `Image URL ${i}`; // Adjust if your header is different
-          const url = row[urlKey]?.trim();
+  const totalProducts = lines.length - 1;
+  console.log(`Found ${totalProducts} products total`);
+  console.log(`STARTING FROM LINE ${START_FROM_LINE} (product ${START_FROM_LINE}/${totalProducts})\n`);
 
-          if (!url || url === '') continue;
+  // Start from your desired line (line 0 = header, line 1 = first product)
+  for (let i = Math.max(START_FROM_LINE, 1); i < lines.length; i++) {
+    const line = lines[i];
+    const cols = line.split(',').map(c => c.trim());
 
-          // Determine filename
-          const ext = path.extname(url.split('?')[0]) || '.jpg'; // fallback to .jpg
-          const suffix = imageIndex === 0 ? '' : `_${imageIndex}`;
-          const filename = `${baseName}${suffix}${ext}`;
-          const filepath = path.join(OUTPUT_FOLDER, filename);
+    const name = cols[0];
+    if (!name || name === 'Name') continue;
 
-          // Skip if already downloaded
-          if (fs.existsSync(filepath)) {
-            console.log(`Already exists, skipping: ${filename}`);
-          } else {
-            await downloadImage(url, filepath);
-          }
+    const partFolder = path.join(OUTPUT_FOLDER, name);
+    if (!fs.existsSync(partFolder)) {
+      fs.mkdirSync(partFolder, { recursive: true });
+    }
 
-          imageIndex++;
-        }
+    const baseName = `${name}_Rough-Country_Waldoch`;
+    let imgIndex = 0;
 
-        // Optional: small delay to be respectful to server
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
+    console.log(`\n[${i}/${totalProducts}] ${name}`);
 
-      console.log('\nAll done! Images saved to:', OUTPUT_FOLDER);
-    });
-}
+    for (let j = 1; j < cols.length && j <= 10; j++) {
+      let url = cols[j];
+      if (!url || !url.startsWith('http')) continue;
 
-// Run the script
-processCSV().catch(err => {
-  console.error('Script failed:', err);
-});
+      const ext = path.extname(new URL(url).pathname) || '.jpg';
+      const suffix = imgIndex === 0 ? '' : `_${imgIndex}`;
+      const filename = `${baseName}${suffix}${ext}`;
+      const fullPath = path.join(partFolder, filename);
+
+      await downloadImage(url, fullPath);
+      imgIndex++;
+    }
+
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  console.log('\nFINISHED! All remaining images downloaded.');
+  console.log(`Check folder: ${path.resolve(OUTPUT_FOLDER)}`);
+})();
