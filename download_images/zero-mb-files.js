@@ -3,7 +3,7 @@ const path = require('path');
 
 const rootDir = './downloaded_images';
 const csvOutput = 'zero_mb_images.csv';
-const deleteScriptOutput = 'delete_zero_mb_images.sh';
+//const deleteScriptOutput = 'delete_zero_mb_images.sh';
 
 const zeroMbFiles = [];
 let csvContent = 'Part Number,Image Name,File Size (bytes)\n';
@@ -69,8 +69,8 @@ if (zeroMbFiles.length === 0) {
 
     deleteScript += '\necho "Done. All 0-byte images removed."\n';
 
-    fs.writeFileSync(deleteScriptOutput, deleteScript);
-    fs.chmodSync(deleteScriptOutput, '755'); // Make executable
-    console.log(`Deletion script generated: ${deleteScriptOutput}`);
-    console.log(`   Run it later with: ./${deleteScriptOutput}`);
+    // fs.writeFileSync(deleteScriptOutput, deleteScript);
+    // fs.chmodSync(deleteScriptOutput, '755'); // Make executable
+    // console.log(`Deletion script generated: ${deleteScriptOutput}`);
+    // console.log(`   Run it later with: ./${deleteScriptOutput}`);
 }
