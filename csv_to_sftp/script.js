@@ -5,30 +5,29 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const Client = require('ssh2-sftp-client');
 
-const url = 'process.env.INVENTORY_URL';
-const outputCsv = 'WaldochWorkTruckSolutions.csv';
-const remotePath = 'WaldochWorkTruckSolutions.csv';
+// === CONFIGURAÇÕES DO .env ===
+const url = process.env.INVENTORY_URL;                    // ex: http://inventory.waldoch.com/exports/export_nosold.php
+const WALDOCH_ZIP = process.env.WALDOCH_ZIP || '55025';   // pode mudar no .env se precisar
 
-// === ESCOLHA O AMBIENTE AQUI ===
-const AMBIENTE = 'TESTE';
-// Mude para 'PROD' quando quiser enviar para produção
-// const AMBIENTE = 'PROD';
+const outputCsv = 'WaldochWorkTruckSolutions.csv';
+const remotePath = '/web/wp-content/plugins/WaldochFormsAPI/js/testdrop/WaldochWorkTruckSolutions.csv';
+
+// === ESCOLHA O AMBIENTE ===
+// Mude para 'TESTE' quando estiver tudo testado e aprovado
+const AMBIENTE = 'PROD';
 
 let sftpConfig;
 
 if (AMBIENTE === 'TESTE') {
-    // Servidor de Teste - autenticação por chave SSH
     sftpConfig = {
         host: process.env.TEST_SFTP_HOST,
         port: Number(process.env.TEST_SFTP_PORT) || 22,
         username: process.env.TEST_SFTP_USERNAME,
         privateKey: fs.readFileSync(process.env.TEST_SFTP_PRIVATE_KEY_PATH),
-        // descomente se a chave tiver senha
-        passphrase: process.env.TEST_SFTP_PASSPHRASE || undefined,  
+        passphrase: process.env.TEST_SFTP_PASSPHRASE,  // ← sem || undefined
     };
     console.log(`[${new Date().toISOString()}] Configurado para SFTP de TESTE (chave SSH)`);
 } else if (AMBIENTE === 'PROD') {
-    // Servidor de Produção - autenticação por senha
     sftpConfig = {
         host: process.env.PROD_SFTP_HOST,
         port: Number(process.env.PROD_SFTP_PORT) || 22,
@@ -40,15 +39,22 @@ if (AMBIENTE === 'TESTE') {
     console.error('Erro: AMBIENTE inválido. Use "TESTE" ou "PROD"');
     process.exit(1);
 }
+
+// === PROCESSAMENTO ===
 const cleanVehicles = [];
 let currentMake = null;
 let fieldMapping = null;
 
-console.log(`[${new Date().toISOString()}] Starting fetch and clean...`);
+if (!url) {
+    console.error('Erro: INVENTORY_URL não está definido no .env');
+    process.exit(1);
+}
+
+console.log(`[${new Date().toISOString()}] Iniciando fetch dos dados...`);
 
 http.get(url, (response) => {
     if (response.statusCode !== 200) {
-        console.error(`Failed to fetch: ${response.statusCode} ${response.statusMessage}`);
+        console.error(`Falha ao buscar dados: ${response.statusCode} ${response.statusMessage}`);
         response.resume();
         process.exit(1);
     }
@@ -60,13 +66,13 @@ http.get(url, (response) => {
 
             if (!timestampKey) return;
 
-            // Detect section title (e.g., "Chevy vehicles")
-            if (row[timestampKey] && typeof row[timestampKey] === 'string' && row[timestampKey].includes(' vehicles')) {
+            // Detecta título da seção (ex: "Chevy vehicles")
+            if (row[timestampKey]?.includes(' vehicles')) {
                 currentMake = row[timestampKey].replace(' vehicles', '').trim().toUpperCase();
                 return;
             }
 
-            // Detect header row
+            // Detecta linha de cabeçalho
             if (row['_1'] === 'build' && row[timestampKey] === 'date_added') {
                 fieldMapping = {
                     [timestampKey]: 'date_added',
@@ -89,14 +95,13 @@ http.get(url, (response) => {
                 return;
             }
 
-            // Vehicle row processing (same as your original)
-            if (fieldMapping && currentMake && row['_4'] && row['_4'].trim().toUpperCase() === currentMake) {
+            // Processa linha de veículo
+            if (fieldMapping && currentMake && row['_4']?.trim().toUpperCase() === currentMake) {
                 const vehicle = {};
                 Object.keys(fieldMapping).forEach(oldKey => {
-                    const tempKey = fieldMapping[oldKey];
                     const value = row[oldKey];
                     if (value !== undefined && value !== '' && value !== null) {
-                        vehicle[tempKey] = value.trim();
+                        vehicle[fieldMapping[oldKey]] = value.trim();
                     }
                 });
 
@@ -105,7 +110,7 @@ http.get(url, (response) => {
                     delete vehicle.order_num;
                 }
 
-                const hasReceipt = vehicle.receipt && vehicle.receipt.trim() !== '';
+                const hasReceipt = vehicle.receipt?.trim() !== '';
                 vehicle['Location Name'] = hasReceipt ? 'Waldoch' : '';
                 vehicle['Location Zip Code'] = hasReceipt ? WALDOCH_ZIP : '';
 
@@ -113,6 +118,7 @@ http.get(url, (response) => {
             }
         })
         .on('end', async () => {
+            // Gera o CSV
             const headers = [
                 'date_added', 'build', 'year', 'body', 'make', 'model', 'trim',
                 'package', 'cab_roof', 'box_wheelbase', 'engine', 'exterior',
@@ -135,30 +141,29 @@ http.get(url, (response) => {
             });
 
             fs.writeFileSync(outputCsv, csvContent, 'utf8');
-            console.log(`Clean CSV created: ${outputCsv} (${cleanVehicles.length} vehicles)`);
+            console.log(`CSV gerado: ${outputCsv} (${cleanVehicles.length} veículos)`);
 
-            // === SFTP UPLOAD ===
+            // === UPLOAD SFTP ===
             const sftp = new Client();
             try {
-                console.log('Connecting to SFTP...');
+                console.log('Conectando ao SFTP...');
                 await sftp.connect(sftpConfig);
-
-                console.log(`Uploading ${outputCsv} → ${remotePath}`);
+                console.log(`Enviando ${outputCsv} → ${remotePath}`);
                 await sftp.put(outputCsv, remotePath);
-
-                console.log(`[${new Date().toISOString()}] Upload successful!`);
+                console.log(`[${new Date().toISOString()}] Upload concluído com sucesso no servidor ${AMBIENTE}!`);
             } catch (err) {
-                console.error('SFTP Error:', err.message);
+                console.error('Erro no SFTP:', err.message);
                 process.exit(1);
             } finally {
                 sftp.end();
             }
         })
         .on('error', (err) => {
-            console.error('CSV Parse error:', err.message);
+            console.error('Erro ao processar CSV:', err.message);
             process.exit(1);
         });
-}).on('error', (err) => {
-    console.error('HTTP Request error:', err.message);
-    process.exit(1);
-});
+})
+    .on('error', (err) => {
+        console.error('Erro na requisição HTTP:', err.message);
+        process.exit(1);
+    });
