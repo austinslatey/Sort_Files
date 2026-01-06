@@ -3,6 +3,14 @@
 2. Creates a custom CSV from data 
 3. Sends the file to a server via SFTP every 24 hours via Windows `Task Scheduler`
 
+## To Automate using `Task Scheduler`
+User must create a .bat file or similar to execute code automatically
+```
+@echo off
+cd "C:\Users\path\to\code"
+"C:\Program Files\nodejs\node.exe" script.js >> upload.log 2>&1
+```
+
 ## .env Example
 The test server uses a private key connection, the production server does not require a private key.
 
