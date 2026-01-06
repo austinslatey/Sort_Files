@@ -1,7 +1,7 @@
 # CSV_TO_SFTP
 1. Sends a GET request to fetch data from URL(data endpoint)
 2. Creates a custom CSV from data 
-3. Sends the file to a server via SFTP every 24 hours
+3. Sends the file to a server via SFTP every 24 hours via Windows `Task Scheduler`
 
 ## .env Example
 The test server uses a private key connection, the production server does not require a private key.
