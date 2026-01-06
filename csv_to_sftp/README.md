@@ -6,7 +6,7 @@
 ## .env Example
 The test server uses a private key connection, the production server does not require a private key.
 
-```env
+```env.EXAMPLE
 # Servidor de Teste (usa chave SSH)
 TEST_SFTP_HOST=sftp-teste.seudominio.com
 TEST_SFTP_PORT=22
