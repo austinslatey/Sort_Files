@@ -5,7 +5,8 @@
 
 ## To Automate using `Task Scheduler`
 User must create a .bat file or similar to execute code automatically
-```
+
+```bat
 @echo off
 cd "C:\Users\path\to\code"
 "C:\Program Files\nodejs\node.exe" script.js >> upload.log 2>&1
